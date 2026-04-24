@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script>
+function _appendParams(url) {
+  var qs = window.location.search;
+  if (!qs) return url;
+  return url + (url.indexOf("?") >= 0 ? "&" : "?") + qs.slice(1);
+}
+</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pagamento PIX</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #f5f5f5;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100svh;
+    }
+
+    .max-w {
+      max-width: 480px;
+      margin: 0 auto;
+      background: #f5f5f5;
+      min-height: 100svh;
+    }
+
+    /* Header gradient */
+    .header {
+      background: linear-gradient(160deg, #ffe0e6 0%, #fff5f7 55%, #f5f5f5 100%);
+      padding: 24px 20px 28px;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .header-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #111;
+      line-height: 1.2;
+    }
+
+    .header-amount {
+      font-size: 22px;
+      font-weight: 700;
+      color: #111;
+    }
+
+    .clock-icon {
+      width: 40px;
+      height: 40px;
+      background: #ff6b35;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .expires-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .expires-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #fff3cd;
+      border-radius: 20px;
+      padding: 3px 10px 3px 7px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .expires-badge svg { flex-shrink: 0; }
+
+    .expires-sub {
+      font-size: 12px;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    /* Card */
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      margin: 0 16px 16px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+
+    .card-inner {
+      padding: 18px 18px 16px;
+    }
+
+    /* PIX label */
+    .pix-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .pix-label img {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+    }
+
+    .pix-label span {
+      font-size: 15px;
+      font-weight: 600;
+      color: #111;
+    }
+
+    /* QR Code */
+    .qr-wrapper {
+      display: flex;
+      justify-content: center;
+      margin: 0 0 16px;
+    }
+
+    #qrcode {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #qrcode canvas, #qrcode img {
+      border-radius: 8px;
+    }
+
+    /* Code display */
+    .code-display {
+      background: #f7f7f7;
+      border-radius: 10px;
+      padding: 14px 14px;
+      margin-bottom: 14px;
+    }
+
+    .code-text {
+      font-size: 14px;
+      color: #333;
+      word-break: break-all;
+      font-family: monospace;
+      letter-spacing: 0.01em;
+      user-select: all;
+    }
+
+    /* Copy button */
+    .btn-copy {
+      width: 100%;
+      padding: 13px;
+      background: #fe2c55;
+      color: #fff;
+      border: none;
+      border-radius: 30px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: opacity 0.15s, transform 0.1s;
+      font-family: inherit;
+    }
+
+    .btn-copy:active { opacity: 0.85; transform: scale(0.98); }
+    .btn-copy.copied { background: #22c55e; }
+
+    /* Info text */
+    .info-text {
+      font-size: 12px;
+      color: #888;
+      text-align: center;
+      padding: 0 16px 16px;
+      line-height: 1.5;
+    }
+
+    .info-text strong { color: #555; font-weight: 500; }
+
+    /* How to pay section */
+    .section-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #111;
+      margin: 8px 16px 12px;
+    }
+
+    .how-step {
+      background: #fff;
+      margin: 0 16px 0;
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 13.5px;
+      color: #444;
+      line-height: 1.6;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    /* Bottom button */
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #fff;
+      border-top: 1px solid #ebebeb;
+      padding: 12px 16px;
+      z-index: 50;
+    }
+
+    .btn-ver-pedido {
+      display: block;
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 14px;
+      background: transparent;
+      border: 1.5px solid #ddd;
+      border-radius: 30px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #333;
+      cursor: pointer;
+      text-align: center;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+
+    .btn-ver-pedido:active { background: #f5f5f5; }
+
+    .pb-bar { height: 80px; }
+
+    /* Loading state */
+    .loading-overlay {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      gap: 12px;
+    }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid #f0f0f0;
+      border-top-color: #fe2c55;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text {
+      font-size: 14px;
+      color: #888;
+    }
+
+    /* Error state */
+    .error-box {
+      background: #fff5f5;
+      border: 1px solid #fecaca;
+      border-radius: 10px;
+      padding: 16px;
+      margin: 16px;
+      text-align: center;
+    }
+
+    .error-box p {
+      font-size: 14px;
+      color: #dc2626;
+      margin-bottom: 12px;
+    }
+
+    .btn-retry {
+      padding: 10px 24px;
+      background: #fe2c55;
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    /* Status badge */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-bottom: 8px;
+    }
+
+    .status-pending {
+      background: #fff7ed;
+      color: #ea580c;
+    }
+
+    .status-completed {
+      background: #f0fdf4;
+      color: #16a34a;
+    }
+
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulse-dot 1.2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.7); }
+    }
+
+    /* Success screen */
+    .success-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 24px;
+      text-align: center;
+      min-height: 60vh;
+    }
+
+    .success-icon {
+      width: 72px;
+      height: 72px;
+      background: #dcfce7;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .success-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #111;
+      margin-bottom: 8px;
+    }
+
+    .success-sub {
+      font-size: 14px;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+<div class="max-w">
+
+  <!-- LOADING STATE -->
+  <div id="loading-state">
+    <div class="loading-overlay">
+      <div class="spinner"></div>
+      <p class="loading-text">Gerando PIX...</p>
+    </div>
+  </div>
+
+  <!-- ERROR STATE -->
+  <div id="error-state" style="display:none;">
+    <div class="error-box">
+      <p id="error-msg">Não foi possível gerar o PIX. Tente novamente.</p>
+      <button class="btn-retry" onclick="initPix()">Tentar novamente</button>
+    </div>
+  </div>
+
+  <!-- PIX STATE -->
+  <div id="pix-state" style="display:none;">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-top">
+        <div>
+          <div class="header-title">Aguardando o pagamento</div>
+          <div class="header-amount" id="header-amount">R$ 0,00</div>
+        </div>
+        <div class="clock-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="expires-row">
+        <div class="expires-badge">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <span id="countdown-timer">23:59:59</span>
+        </div>
+      </div>
+      <div class="expires-sub" id="expires-date">Prazo --:-- , -- --- ----</div>
+    </div>
+
+    <!-- PIX Card -->
+    <div class="card" style="margin-top: -8px;">
+      <div class="card-inner">
+
+        <div class="pix-label">
+          <img src="https://devtools.com.br/img/pix/logo-pix-png-icone-520x520.png" alt="PIX">
+          <span>PIX</span>
+        </div>
+
+        <!-- QR Code -->
+        <div class="qr-wrapper">
+          <div id="qrcode"></div>
+        </div>
+
+        <!-- Code display -->
+        <div class="code-display">
+          <div class="code-text" id="pix-code-text">Carregando...</div>
+        </div>
+
+        <!-- Copy button -->
+        <button class="btn-copy" id="btn-copy" onclick="copiarCodigo()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          <span id="btn-copy-text">Copiar</span>
+        </button>
+
+      </div>
+    </div>
+
+    <!-- Info -->
+    <p class="info-text">
+      Para acessar esta página no app, abra <strong>Loja &gt; Pedidos &gt; Sem pagamento &gt; Visualizar o código</strong>
+    </p>
+
+    <!-- How to pay -->
+    <p class="section-title">Como fazer pagamentos com PIX?</p>
+    <div class="how-step">
+      Copie o código de pagamento acima, selecione Pix no seu app de internet ou de banco e cole o código.
+    </div>
+
+    <div class="pb-bar"></div>
+  </div>
+
+  <!-- SUCCESS STATE -->
+  <div id="success-state" class="success-screen">
+    <div class="success-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+    <div class="success-title">Pagamento confirmado!</div>
+    <p class="success-sub">Seu pedido foi recebido com sucesso.<br>Obrigado pela compra!</p>
+  </div>
+
+  <!-- Bottom bar -->
+  <div class="bottom-bar" id="bottom-bar" style="display:none;">
+    <button class="btn-ver-pedido" onclick="window.location.href=_appendParams('resumo.html')">
+      Ver pedido
+    </button>
+  </div>
+
+</div>
+
+<script>
+  const DUTTYFY_URL = 'https://www.pagamentos-seguros.app/api-pix/yO_pimz-Vmh9VJlOW8FFUAA_6-Jv8Pqceq4BaTJh2OJmYzF9UQGtUzKpZK5XrShltV0lPpfTbRPxtTruNybVOw';
+
+  let pollingInterval = null;
+  let countdownInterval = null;
+  let pixCode = '';
+  let transactionId = '';
+
+  // ---- Format currency ----
+  function formatBRL(cents) {
+    return 'R$ ' + (cents / 100).toFixed(2).replace('.', ',');
+  }
+
+  // ---- Format expiry date ----
+  function formatExpiry(date) {
+    const d = new Date(date);
+    const pad = n => String(n).padStart(2,'0');
+    const months = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+    return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ', ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+  }
+
+  // ---- Countdown timer ----
+  function startCountdown(expiresAt) {
+    clearInterval(countdownInterval);
+    countdownInterval = setInterval(() => {
+      const diff = expiresAt - Date.now();
+      if (diff <= 0) {
+        clearInterval(countdownInterval);
+        document.getElementById('countdown-timer').textContent = '00:00:00';
+        return;
+      }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      const pad = n => String(n).padStart(2,'0');
+      document.getElementById('countdown-timer').textContent = pad(h) + ':' + pad(m) + ':' + pad(s);
+    }, 1000);
+  }
+
+  // ---- Copy PIX code ----
+  function copiarCodigo() {
+    if (!pixCode) return;
+    navigator.clipboard.writeText(pixCode).then(() => {
+      const btn = document.getElementById('btn-copy');
+      const txt = document.getElementById('btn-copy-text');
+      btn.classList.add('copied');
+      txt.textContent = 'Copiado!';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        txt.textContent = 'Copiar';
+      }, 2500);
+    }).catch(() => {
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = pixCode;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      const txt = document.getElementById('btn-copy-text');
+      txt.textContent = 'Copiado!';
+      setTimeout(() => txt.textContent = 'Copiar', 2500);
+    });
+  }
+
+  // ---- Generate QR Code ----
+  function generateQR(code) {
+    const el = document.getElementById('qrcode');
+    el.innerHTML = '';
+    new QRCode(el, {
+      text: code,
+      width: 200,
+      height: 200,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  }
+
+  // ---- Show PIX page ----
+  function showPixPage(code, txId, amountCents) {
+    pixCode = code;
+    transactionId = txId;
+
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('error-state').style.display = 'none';
+    document.getElementById('pix-state').style.display = 'block';
+    document.getElementById('bottom-bar').style.display = 'block';
+
+    // Amount
+    document.getElementById('header-amount').textContent = formatBRL(amountCents);
+
+    // Code display (truncated for display, full for copy)
+    const truncated = code.length > 48 ? code.slice(0, 48) + '...' : code;
+    document.getElementById('pix-code-text').textContent = truncated;
+
+    // Expiry: 24h from now
+    const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
+    document.getElementById('expires-date').textContent = 'Prazo ' + formatExpiry(expiresAt);
+    startCountdown(expiresAt);
+
+    // QR Code
+    generateQR(code);
+
+    // Start polling
+    startPolling(txId);
+  }
+
+  // ---- Show success ----
+  function showSuccess() {
+    clearInterval(pollingInterval);
+    clearInterval(countdownInterval);
+    document.getElementById('pix-state').style.display = 'none';
+    document.getElementById('bottom-bar').style.display = 'none';
+    const sc = document.getElementById('success-state');
+    sc.style.display = 'flex';
+    // Redirect after 3s
+    setTimeout(() => { window.location.href = _appendParams('resumo.html'); }, 3500);
+  }
+
+  // ---- Poll status ----
+  function startPolling(txId) {
+    clearInterval(pollingInterval);
+    pollingInterval = setInterval(async () => {
+      try {
+        const encoded = encodeURIComponent(txId);
+        const res = await fetch(DUTTYFY_URL + '?transactionId=' + encoded, {
+          method: 'GET',
+          signal: AbortSignal.timeout(10000)
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.status === 'COMPLETED') {
+          showSuccess();
+        }
+      } catch (e) {
+        // next cycle
+      }
+    }, 5000);
+
+    // Stop after 15 min
+    setTimeout(() => clearInterval(pollingInterval), 15 * 60 * 1000);
+  }
+
+  // ---- Create PIX charge ----
+  async function criarCharge(customerData, amountCents) {
+    const utm = sessionStorage.getItem('utm') || window.location.search.replace(/^\?/, '');
+
+    const body = {
+      amount: amountCents,
+      customer: {
+        name: customerData.name,
+        document: customerData.document,
+        email: customerData.email,
+        phone: customerData.phone
+      },
+      item: {
+        title: 'Kit 3 Gummy Original',
+        price: amountCents,
+        quantity: 1
+      },
+      paymentMethod: 'PIX'
+    };
+
+    if (utm) body.utm = utm;
+
+    let lastError = '';
+    const delays = [1000, 2000, 4000];
+
+    for (let attempt = 0; attempt <= 3; attempt++) {
+      if (attempt > 0) {
+        await new Promise(r => setTimeout(r, delays[attempt - 1]));
+      }
+      try {
+        const res = await fetch(DUTTYFY_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(15000)
+        });
+
+        if (res.status >= 400 && res.status < 500) {
+          // 4xx - do not retry
+          const err = await res.json().catch(() => ({}));
+          throw new Error('Erro ' + res.status + ': ' + (err.message || 'Dados inválidos'));
+        }
+
+        if (!res.ok) {
+          lastError = 'Erro ' + res.status;
+          continue; // retry on 5xx
+        }
+
+        const data = await res.json();
+        if (!data.pixCode || !data.transactionId) {
+          throw new Error('Resposta inválida do gateway');
+        }
+
+        // Persist transactionId
+        sessionStorage.setItem('transactionId', data.transactionId);
+
+        return data;
+
+      } catch (e) {
+        if (e.message.startsWith('Erro 4')) throw e; // don't retry 4xx
+        lastError = e.message;
+        if (attempt === 3) throw new Error(lastError);
+      }
+    }
+    throw new Error(lastError || 'Falha ao criar cobrança');
+  }
+
+  // ---- Parse amount from sessionStorage ----
+  function parseAmount() {
+    // Try to get from sessionStorage (set by resumo.html)
+    const raw = sessionStorage.getItem('valor_total');
+    if (raw) {
+      // Could be "R$ 49,90" or "4990" or "49.90"
+      const cleaned = String(raw).replace(/[^\d,\.]/g, '').replace(',', '.');
+      const num = parseFloat(cleaned);
+      if (!isNaN(num)) {
+        // If it looks like it's already in reais (< 10000)
+        return Math.round(num * 100);
+      }
+    }
+    // Default fallback
+    return 4990;
+  }
+
+  // ---- Main init ----
+  async function initPix() {
+    document.getElementById('loading-state').style.display = 'block';
+    document.getElementById('error-state').style.display = 'none';
+    document.getElementById('pix-state').style.display = 'none';
+    document.getElementById('bottom-bar').style.display = 'none';
+
+    // Check if we already have a transactionId from this session (avoid double charge)
+    const existingTxId = sessionStorage.getItem('transactionId');
+    const existingPixCode = sessionStorage.getItem('pixCode');
+    if (existingTxId && existingPixCode) {
+      const amountCents = parseAmount();
+      showPixPage(existingPixCode, existingTxId, amountCents);
+      return;
+    }
+
+    // Get customer data from sessionStorage
+    const nome = sessionStorage.getItem('endereco_nome') || '';
+    const tel = sessionStorage.getItem('endereco_tel') || '';
+    const emailRaw = sessionStorage.getItem('endereco_email') || '';
+
+    // Try to get CPF — saved in endereco.html
+    const cpf = sessionStorage.getItem('endereco_cpf') || '00000000000';
+    const email = emailRaw || sessionStorage.getItem('endereco_email_raw') || 'cliente@email.com';
+
+    if (!nome || !tel) {
+      document.getElementById('loading-state').style.display = 'none';
+      document.getElementById('error-state').style.display = 'block';
+      document.getElementById('error-msg').textContent = 'Dados do cliente não encontrados. Volte e preencha o endereço.';
+      document.getElementById('bottom-bar').style.display = 'block';
+      return;
+    }
+
+    const amountCents = parseAmount();
+
+    const customerData = {
+      name: nome,
+      document: cpf.replace(/\D/g, '').padEnd(11, '0').slice(0, 11),
+      email: email,
+      phone: tel.replace(/\D/g, '')
+    };
+
+    try {
+      const data = await criarCharge(customerData, amountCents);
+      sessionStorage.setItem('pixCode', data.pixCode);
+      showPixPage(data.pixCode, data.transactionId, amountCents);
+    } catch (e) {
+      document.getElementById('loading-state').style.display = 'none';
+      document.getElementById('error-state').style.display = 'block';
+      document.getElementById('error-msg').textContent = e.message || 'Não foi possível gerar o PIX.';
+      document.getElementById('bottom-bar').style.display = 'block';
+    }
+  }
+
+  // On page load
+  window.addEventListener('load', initPix);
+</script>
+</body>
+</html>
