@@ -3,76 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Criar Transação - Escala Pagamentos</title>
+    <title>Teste API Escala Pay</title>
     <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; padding: 20px; background-color: #f4f4f9; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-        button { width: 100%; padding: 10px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
-        button:hover { background-color: #218838; }
-        #status { margin-top: 15px; padding: 10px; border-radius: 4px; display: none; word-break: break-all; }
+        body { font-family: sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        input, button { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; }
+        #resultado { margin-top: 20px; padding: 15px; border: 1px solid #eee; display: none; text-align: center; }
+        .qr-code { width: 200px; height: 200px; margin: 10px auto; }
+        .status-pendente { color: orange; font-weight: bold; }
+        .status-confirmado { color: green; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h2>Nova Transação</h2>
-    <p><strong>Valor:</strong> R$ 100,50</p>
-    <p><strong>Cliente:</strong> João Silva</p>
-    <button id="btnPagar">Criar Pagamento</button>
-    <div id="status"></div>
-</div>
+    <h2>Criar Pagamento PIX</h2>
+    
+    <label>Valor (R$):</label>
+    <input type="number" id="valor" value="0.50" step="0.01">
+    
+    <label>Nome do Cliente:</label>
+    <input type="text" id="nome" value="Usuário Teste">
 
-<script>
-    document.getElementById('btnPagar').addEventListener('click', async () => {
-        const statusDiv = document.getElementById('status');
-        const btn = document.getElementById('btnPagar');
-        
-        // Configurações da requisição
-        const url = 'https://www.escalapagamentos.combureputercdnaw/transactions-create';
-        const apiKey = 'sk_live_z5KkSbvJJ2RsZgIIt7vNGeqF0kDzXim0plnSlAq4Zs0SIELq'; // Substitua pela sua chave real
-        
-        const dados = {
-            valor: 100.50,
-            descricao: "Pedido #123",
-            cliente_nome: "João Silva",
-            cliente_email: "joao@exemplo.com",
-            cliente_documento: "12345678900"
-        };
+    <button onclick="gerarPix()">Gerar QR Code PIX</button>
 
-        btn.disabled = true;
-        btn.innerText = 'Processando...';
-        statusDiv.style.display = 'none';
+    <div id="resultado">
+        <p>Status: <span id="statusLabel" class="status-pendente">Aguardando...</span></p>
+        <div id="qrContainer"></div>
+        <p><small>Copia e Cola:</small></p>
+        <textarea id="pixCopiaCola" readonly rows="3" style="width:100%"></textarea>
+    </div>
 
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-API-Key': apiKey
-                },
-                body: JSON.stringify(dados)
-            });
+    <script>
+        const API_KEY = 'ik_live_M6VPr6yBn10n9c6YqdQ3amxwIpRPq4HiitgiYYum3HGUhAVc';
+        const BASE_URL = 'https://www.escalapagamentos.combureputercdnaw';
 
-            const resultado = await response.json();
+        async function gerarPix() {
+            const valor = document.getElementById('valor').value;
+            const nome = document.getElementById('nome').value;
+            const btn = document.querySelector('button');
+            
+            btn.disabled = true;
+            btn.innerText = "Processando...";
 
-            if (response.ok) {
-                statusDiv.style.backgroundColor = '#d4edda';
-                statusDiv.style.color = '#155724';
-                statusDiv.innerHTML = '<strong>Sucesso!</strong><br>' + JSON.stringify(resultado);
-            } else {
-                throw new Error(resultado.message || 'Erro na requisição');
+            try {
+                const response = await fetch(`${BASE_URL}/transactions-create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': API_KEY
+                    },
+                    body: JSON.stringify({
+                        valor: parseFloat(valor),
+                        descricao: "Teste de Integração",
+                        cliente_nome: nome,
+                        cliente_email: "teste@exemplo.com",
+                        cliente_documento: "12345678900"
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.sucesso) {
+                    exibirPix(data.transacao);
+                    aguardarPagamento(data.transacao.transaction_id);
+                } else {
+                    alert("Erro: " + data.erro);
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Erro na requisição. Verifique o console.");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Gerar QR Code PIX";
             }
-        } catch (error) {
-            statusDiv.style.backgroundColor = '#f8d7da';
-            statusDiv.style.color = '#721c24';
-            statusDiv.innerHTML = '<strong>Erro:</strong> ' + error.message;
-        } finally {
-            statusDiv.style.display = 'block';
-            btn.disabled = false;
-            btn.innerText = 'Criar Pagamento';
         }
-    });
-</script>
 
+        function exibirPix(transacao) {
+            document.getElementById('resultado').style.display = 'block';
+            document.getElementById('pixCopiaCola').value = transacao.pix_copia_cola;
+            document.getElementById('qrContainer').innerHTML = `<img src="${transacao.qr_code}" class="qr-code">`;
+        }
+
+        async function aguardarPagamento(transactionId) {
+            const statusLabel = document.getElementById('statusLabel');
+            
+            // Polling: verifica a cada 5 segundos
+            const interval = setInterval(async () => {
+                try {
+                    const res = await fetch(`${BASE_URL}/check-payment-status?transaction_id=${transactionId}`, {
+                        headers: { 'X-API-Key': API_KEY }
+                    });
+                    const data = await res.json();
+
+                    if (data.is_confirmed) {
+                        statusLabel.innerText = "PAGO COM SUCESSO!";
+                        statusLabel.className = "status-confirmado";
+                        clearInterval(interval);
+                        alert("Pagamento Confirmado!");
+                    }
+                } catch (e) {
+                    console.error("Erro ao checar status", e);
+                }
+            }, 5000);
+        }
+    </script>
 </body>
 </html>
